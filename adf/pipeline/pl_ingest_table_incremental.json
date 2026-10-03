@@ -159,7 +159,7 @@
 				}
 			},
 			{
-				"name": "update_watermark",
+				"name": "update_landing_watermark",
 				"type": "SqlServerStoredProcedure",
 				"dependsOn": [
 					{
