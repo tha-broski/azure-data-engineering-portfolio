@@ -1,0 +1,227 @@
+{
+	"name": "pl_ingest_table_incremental",
+	"properties": {
+		"activities": [
+			{
+				"name": "copy_table_to_landing",
+				"type": "Copy",
+				"dependsOn": [
+					{
+						"activity": "lookup_new_watermark",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"source": {
+						"type": "AzureSqlSource",
+						"sqlReaderQuery": {
+							"value": "@concat(\n  'SELECT * FROM ',\n  pipeline().parameters.p_source_schema,\n  '.',\n  pipeline().parameters.p_source_table,\n  ' WHERE ',\n  pipeline().parameters.p_watermark_column,\n  ' > ''',\n  coalesce(activity('lookup_old_watermark').output.firstRow.last_watermark, '1900-01-01T00:00:00'),\n  ''' AND ',\n  pipeline().parameters.p_watermark_column,\n  ' <= ''',\n  activity('lookup_new_watermark').output.firstRow.new_watermark,\n  ''''\n)",
+							"type": "Expression"
+						},
+						"queryTimeout": "02:00:00",
+						"partitionOption": "None"
+					},
+					"sink": {
+						"type": "ParquetSink",
+						"storeSettings": {
+							"type": "AzureBlobFSWriteSettings"
+						},
+						"formatSettings": {
+							"type": "ParquetWriteSettings"
+						}
+					},
+					"enableStaging": false,
+					"translator": {
+						"type": "TabularTranslator",
+						"typeConversion": true,
+						"typeConversionSettings": {
+							"allowDataTruncation": true,
+							"treatBooleanAsNumber": false
+						}
+					}
+				},
+				"inputs": [
+					{
+						"referenceName": "ds_sql_generic",
+						"type": "DatasetReference",
+						"parameters": {
+							"p_schema": {
+								"value": "@pipeline().parameters.p_source_schema",
+								"type": "Expression"
+							},
+							"p_table": {
+								"value": "@pipeline().parameters.p_source_table",
+								"type": "Expression"
+							}
+						}
+					}
+				],
+				"outputs": [
+					{
+						"referenceName": "ds_adls_customer_parquet",
+						"type": "DatasetReference",
+						"parameters": {
+							"p_ingestion_date": {
+								"value": "@formatDateTime(utcNow(),'yyyy-MM-dd')",
+								"type": "Expression"
+							},
+							"p_batch_id": {
+								"value": "@pipeline().RunId",
+								"type": "Expression"
+							},
+							"p_table": "@pipeline().parameters.p_source_table",
+							"p_schema": "@pipeline().parameters.p_source_schema"
+						}
+					}
+				]
+			},
+			{
+				"name": "lookup_old_watermark",
+				"type": "Lookup",
+				"dependsOn": [],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"source": {
+						"type": "AzureSqlSource",
+						"sqlReaderQuery": {
+							"value": "@concat(\n  'SELECT source_schema, source_table, watermark_column, last_watermark, last_run_status, updated_at FROM etl.Watermark WHERE source_schema = ''',\n  pipeline().parameters.p_source_schema,\n  ''' AND source_table = ''',\n  pipeline().parameters.p_source_table,\n  ''''\n)",
+							"type": "Expression"
+						},
+						"queryTimeout": "02:00:00",
+						"partitionOption": "None"
+					},
+					"dataset": {
+						"referenceName": "ds_sql_watermark",
+						"type": "DatasetReference"
+					}
+				}
+			},
+			{
+				"name": "lookup_new_watermark",
+				"type": "Lookup",
+				"dependsOn": [
+					{
+						"activity": "lookup_old_watermark",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"source": {
+						"type": "AzureSqlSource",
+						"sqlReaderQuery": {
+							"value": "@concat(\n  'SELECT MAX(',\n  pipeline().parameters.p_watermark_column,\n  ') AS new_watermark FROM ',\n  pipeline().parameters.p_source_schema,\n  '.',\n  pipeline().parameters.p_source_table\n)",
+							"type": "Expression"
+						},
+						"queryTimeout": "02:00:00",
+						"partitionOption": "None"
+					},
+					"dataset": {
+						"referenceName": "ds_sql_generic",
+						"type": "DatasetReference",
+						"parameters": {
+							"p_schema": {
+								"value": "@pipeline().parameters.p_source_schema",
+								"type": "Expression"
+							},
+							"p_table": {
+								"value": "@pipeline().parameters.p_source_table",
+								"type": "Expression"
+							}
+						}
+					}
+				}
+			},
+			{
+				"name": "update_watermark",
+				"type": "SqlServerStoredProcedure",
+				"dependsOn": [
+					{
+						"activity": "copy_table_to_landing",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"storedProcedureName": "etl.UpdateWatermark",
+					"storedProcedureParameters": {
+						"source_schema": {
+							"value": {
+								"value": "@pipeline().parameters.p_source_schema",
+								"type": "Expression"
+							},
+							"type": "String"
+						},
+						"source_table": {
+							"value": {
+								"value": "@pipeline().parameters.p_source_table",
+								"type": "Expression"
+							},
+							"type": "String"
+						},
+						"new_watermark": {
+							"value": {
+								"value": "@activity('lookup_new_watermark').output.firstRow.new_watermark",
+								"type": "Expression"
+							},
+							"type": "String"
+						}
+					}
+				},
+				"linkedServiceName": {
+					"referenceName": "ls_azure_sql_adventureworkslt",
+					"type": "LinkedServiceReference"
+				}
+			}
+		],
+		"parameters": {
+			"p_source_schema": {
+				"type": "string"
+			},
+			"p_source_table": {
+				"type": "string"
+			},
+			"p_watermark_column": {
+				"type": "string"
+			}
+		},
+		"annotations": [],
+		"lastPublishTime": "2026-10-03T17:36:01Z"
+	},
+	"type": "Microsoft.DataFactory/factories/pipelines"
+}

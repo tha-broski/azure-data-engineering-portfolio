@@ -1,0 +1,42 @@
+{
+	"name": "ds_adls_customer_parquet",
+	"properties": {
+		"linkedServiceName": {
+			"referenceName": "ls_adls_landing",
+			"type": "LinkedServiceReference"
+		},
+		"parameters": {
+			"p_ingestion_date": {
+				"type": "string"
+			},
+			"p_batch_id": {
+				"type": "string"
+			},
+			"p_table": {
+				"type": "string"
+			},
+			"p_schema": {
+				"type": "string"
+			}
+		},
+		"annotations": [],
+		"type": "Parquet",
+		"typeProperties": {
+			"location": {
+				"type": "AzureBlobFSLocation",
+				"fileName": {
+					"value": "@concat(\n  dataset().p_schema,\n  '.',\n  dataset().p_table,\n  '_',\n  dataset().p_batch_id,\n  '.parquet'\n)",
+					"type": "Expression"
+				},
+				"folderPath": {
+					"value": "@concat(\n  'adventureworkslt/',\n  toLower(dataset().p_table),\n  '/ingestion_date=',\n  dataset().p_ingestion_date\n)",
+					"type": "Expression"
+				},
+				"fileSystem": "landing"
+			},
+			"compressionCodec": "snappy"
+		},
+		"schema": []
+	},
+	"type": "Microsoft.DataFactory/factories/datasets"
+}

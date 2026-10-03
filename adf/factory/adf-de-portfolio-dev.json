@@ -1,0 +1,15 @@
+{
+	"name": "adf-de-portfolio-dev",
+	"properties": {
+		"trustModeClaimForMi": {
+			"value": "Disabled",
+			"editable": true
+		}
+	},
+	"location": "polandcentral",
+	"identity": {
+		"type": "SystemAssigned",
+		"principalId": "e9cf5aa2-fbd9-47e8-b048-85637511ea4b",
+		"tenantId": "bd8ffe5a-1a6b-4bde-8733-75cca37c7dbd"
+	}
+}

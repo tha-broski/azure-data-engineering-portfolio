@@ -1,0 +1,44 @@
+{
+	"name": "ds_sql_watermark",
+	"properties": {
+		"linkedServiceName": {
+			"referenceName": "ls_azure_sql_adventureworkslt",
+			"type": "LinkedServiceReference"
+		},
+		"annotations": [],
+		"type": "AzureSqlTable",
+		"schema": [
+			{
+				"name": "source_schema",
+				"type": "nvarchar"
+			},
+			{
+				"name": "source_table",
+				"type": "nvarchar"
+			},
+			{
+				"name": "watermark_column",
+				"type": "nvarchar"
+			},
+			{
+				"name": "last_watermark",
+				"type": "datetime2",
+				"scale": 7
+			},
+			{
+				"name": "last_run_status",
+				"type": "nvarchar"
+			},
+			{
+				"name": "updated_at",
+				"type": "datetime2",
+				"scale": 7
+			}
+		],
+		"typeProperties": {
+			"schema": "etl",
+			"table": "Watermark"
+		}
+	},
+	"type": "Microsoft.DataFactory/factories/datasets"
+}

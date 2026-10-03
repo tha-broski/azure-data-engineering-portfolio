@@ -1,0 +1,29 @@
+{
+	"name": "tr_daily_ingestion",
+	"properties": {
+		"annotations": [],
+		"runtimeState": "Started",
+		"pipelines": [
+			{
+				"pipelineReference": {
+					"referenceName": "pl_ingest_all_tables",
+					"type": "PipelineReference"
+				}
+			}
+		],
+		"type": "ScheduleTrigger",
+		"typeProperties": {
+			"recurrence": {
+				"frequency": "Day",
+				"interval": 1,
+				"startTime": "2026-10-04T01:30:00",
+				"timeZone": "Central European Standard Time",
+				"schedule": {
+					"hours": [
+						2
+					]
+				}
+			}
+		}
+	}
+}

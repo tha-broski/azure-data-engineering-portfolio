@@ -1,0 +1,88 @@
+{
+	"name": "pl_ingest_all_tables",
+	"properties": {
+		"activities": [
+			{
+				"name": "lookup_ingestion_tables",
+				"type": "Lookup",
+				"dependsOn": [],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"source": {
+						"type": "AzureSqlSource",
+						"sqlReaderQuery": "SELECT\n    source_schema,\n    source_table,\n    watermark_column\nFROM etl.Watermark;",
+						"queryTimeout": "02:00:00",
+						"partitionOption": "None"
+					},
+					"dataset": {
+						"referenceName": "ds_sql_watermark",
+						"type": "DatasetReference"
+					},
+					"firstRowOnly": false
+				}
+			},
+			{
+				"name": "foreach_ingestion_table",
+				"type": "ForEach",
+				"dependsOn": [
+					{
+						"activity": "lookup_ingestion_tables",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"userProperties": [],
+				"typeProperties": {
+					"items": {
+						"value": "@activity('lookup_ingestion_tables').output.value",
+						"type": "Expression"
+					},
+					"isSequential": false,
+					"activities": [
+						{
+							"name": "executre_ingestion_pipeline",
+							"type": "ExecutePipeline",
+							"dependsOn": [],
+							"policy": {
+								"secureInput": false
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"pipeline": {
+									"referenceName": "pl_ingest_table_incremental",
+									"type": "PipelineReference"
+								},
+								"waitOnCompletion": true,
+								"parameters": {
+									"p_source_schema": {
+										"value": "@item().source_schema",
+										"type": "Expression"
+									},
+									"p_source_table": {
+										"value": "@item().source_table",
+										"type": "Expression"
+									},
+									"p_watermark_column": {
+										"value": "@item().watermark_column",
+										"type": "Expression"
+									}
+								}
+							}
+						}
+					]
+				}
+			}
+		],
+		"annotations": [],
+		"lastPublishTime": "2026-10-03T17:36:02Z"
+	},
+	"type": "Microsoft.DataFactory/factories/pipelines"
+}
