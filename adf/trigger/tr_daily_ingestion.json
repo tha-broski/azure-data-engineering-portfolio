@@ -1,6 +1,7 @@
 {
 	"name": "tr_daily_ingestion",
 	"properties": {
+		"description": "Runs ingestion for each table at 2:00AM",
 		"annotations": [],
 		"runtimeState": "Started",
 		"pipelines": [
