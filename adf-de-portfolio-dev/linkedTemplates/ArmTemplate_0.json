@@ -1,0 +1,621 @@
+{
+	"$schema": "http://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+	"contentVersion": "1.0.0.0",
+	"parameters": {
+		"factoryName": {
+			"type": "string",
+			"metadata": "Data Factory name",
+			"defaultValue": "adf-de-portfolio-dev"
+		},
+		"ls_adls_landing_properties_typeProperties_url": {
+			"type": "string",
+			"defaultValue": "https://stdeportfoliodev01.dfs.core.windows.net/"
+		},
+		"ls_azure_sql_adventureworkslt_properties_typeProperties_server": {
+			"type": "string",
+			"defaultValue": "sql-de-portfolio-dev.database.windows.net"
+		},
+		"ls_azure_sql_adventureworkslt_properties_typeProperties_database": {
+			"type": "string",
+			"defaultValue": "sqldb-adventureworkslt-dev"
+		}
+	},
+	"variables": {
+		"factoryId": "[concat('Microsoft.DataFactory/factories/', parameters('factoryName'))]"
+	},
+	"resources": [
+		{
+			"name": "[concat(parameters('factoryName'), '/ls_adls_landing')]",
+			"type": "Microsoft.DataFactory/factories/linkedServices",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"annotations": [],
+				"type": "AzureBlobFS",
+				"typeProperties": {
+					"url": "[parameters('ls_adls_landing_properties_typeProperties_url')]"
+				}
+			},
+			"dependsOn": []
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/ls_azure_sql_adventureworkslt')]",
+			"type": "Microsoft.DataFactory/factories/linkedServices",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"annotations": [],
+				"type": "AzureSqlDatabase",
+				"typeProperties": {
+					"server": "[parameters('ls_azure_sql_adventureworkslt_properties_typeProperties_server')]",
+					"database": "[parameters('ls_azure_sql_adventureworkslt_properties_typeProperties_database')]",
+					"encrypt": "mandatory",
+					"trustServerCertificate": false,
+					"authenticationType": "SystemAssignedManagedIdentity"
+				}
+			},
+			"dependsOn": []
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/ds_adls_customer_parquet')]",
+			"type": "Microsoft.DataFactory/factories/datasets",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"linkedServiceName": {
+					"referenceName": "ls_adls_landing",
+					"type": "LinkedServiceReference"
+				},
+				"parameters": {
+					"p_ingestion_date": {
+						"type": "string"
+					},
+					"p_batch_id": {
+						"type": "string"
+					},
+					"p_table": {
+						"type": "string"
+					},
+					"p_schema": {
+						"type": "string"
+					}
+				},
+				"annotations": [],
+				"type": "Parquet",
+				"typeProperties": {
+					"location": {
+						"type": "AzureBlobFSLocation",
+						"fileName": {
+							"value": "@concat(\n  dataset().p_schema,\n  '.',\n  dataset().p_table,\n  '_',\n  dataset().p_batch_id,\n  '.parquet'\n)",
+							"type": "Expression"
+						},
+						"folderPath": {
+							"value": "@concat(\n  'adventureworkslt/',\n  toLower(dataset().p_table),\n  '/ingestion_date=',\n  dataset().p_ingestion_date\n)",
+							"type": "Expression"
+						},
+						"fileSystem": "landing"
+					},
+					"compressionCodec": "snappy"
+				},
+				"schema": []
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/linkedServices/ls_adls_landing')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/ds_sql_generic')]",
+			"type": "Microsoft.DataFactory/factories/datasets",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"linkedServiceName": {
+					"referenceName": "ls_azure_sql_adventureworkslt",
+					"type": "LinkedServiceReference"
+				},
+				"parameters": {
+					"p_schema": {
+						"type": "string"
+					},
+					"p_table": {
+						"type": "string"
+					}
+				},
+				"annotations": [],
+				"type": "AzureSqlTable",
+				"schema": [
+					{
+						"name": "CustomerID",
+						"type": "int",
+						"precision": 10
+					},
+					{
+						"name": "NameStyle",
+						"type": "bit"
+					},
+					{
+						"name": "Title",
+						"type": "nvarchar"
+					},
+					{
+						"name": "FirstName",
+						"type": "nvarchar"
+					},
+					{
+						"name": "MiddleName",
+						"type": "nvarchar"
+					},
+					{
+						"name": "LastName",
+						"type": "nvarchar"
+					},
+					{
+						"name": "Suffix",
+						"type": "nvarchar"
+					},
+					{
+						"name": "CompanyName",
+						"type": "nvarchar"
+					},
+					{
+						"name": "SalesPerson",
+						"type": "nvarchar"
+					},
+					{
+						"name": "EmailAddress",
+						"type": "nvarchar"
+					},
+					{
+						"name": "Phone",
+						"type": "nvarchar"
+					},
+					{
+						"name": "PasswordHash",
+						"type": "varchar"
+					},
+					{
+						"name": "PasswordSalt",
+						"type": "varchar"
+					},
+					{
+						"name": "rowguid",
+						"type": "uniqueidentifier"
+					},
+					{
+						"name": "ModifiedDate",
+						"type": "datetime",
+						"precision": 23,
+						"scale": 3
+					}
+				],
+				"typeProperties": {
+					"schema": {
+						"value": "@concat(\n  dataset().p_schema)",
+						"type": "Expression"
+					},
+					"table": {
+						"value": "@concat(dataset().p_table)",
+						"type": "Expression"
+					}
+				}
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/linkedServices/ls_azure_sql_adventureworkslt')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/ds_sql_watermark')]",
+			"type": "Microsoft.DataFactory/factories/datasets",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"linkedServiceName": {
+					"referenceName": "ls_azure_sql_adventureworkslt",
+					"type": "LinkedServiceReference"
+				},
+				"annotations": [],
+				"type": "AzureSqlTable",
+				"schema": [
+					{
+						"name": "source_schema",
+						"type": "nvarchar"
+					},
+					{
+						"name": "source_table",
+						"type": "nvarchar"
+					},
+					{
+						"name": "watermark_column",
+						"type": "nvarchar"
+					},
+					{
+						"name": "last_watermark",
+						"type": "datetime2",
+						"scale": 7
+					},
+					{
+						"name": "last_run_status",
+						"type": "nvarchar"
+					},
+					{
+						"name": "updated_at",
+						"type": "datetime2",
+						"scale": 7
+					}
+				],
+				"typeProperties": {
+					"schema": "etl",
+					"table": "Watermark"
+				}
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/linkedServices/ls_azure_sql_adventureworkslt')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/pl_ingest_table_incremental')]",
+			"type": "Microsoft.DataFactory/factories/pipelines",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"activities": [
+					{
+						"name": "copy_table_to_landing",
+						"type": "Copy",
+						"dependsOn": [
+							{
+								"activity": "lookup_new_watermark",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"source": {
+								"type": "AzureSqlSource",
+								"sqlReaderQuery": {
+									"value": "@concat(\n  'SELECT * FROM ',\n  pipeline().parameters.p_source_schema,\n  '.',\n  pipeline().parameters.p_source_table,\n  ' WHERE ',\n  pipeline().parameters.p_watermark_column,\n  ' > ''',\n  coalesce(activity('lookup_old_watermark').output.firstRow.last_watermark, '1900-01-01T00:00:00'),\n  ''' AND ',\n  pipeline().parameters.p_watermark_column,\n  ' <= ''',\n  activity('lookup_new_watermark').output.firstRow.new_watermark,\n  ''''\n)",
+									"type": "Expression"
+								},
+								"queryTimeout": "02:00:00",
+								"partitionOption": "None"
+							},
+							"sink": {
+								"type": "ParquetSink",
+								"storeSettings": {
+									"type": "AzureBlobFSWriteSettings"
+								},
+								"formatSettings": {
+									"type": "ParquetWriteSettings"
+								}
+							},
+							"enableStaging": false,
+							"translator": {
+								"type": "TabularTranslator",
+								"typeConversion": true,
+								"typeConversionSettings": {
+									"allowDataTruncation": true,
+									"treatBooleanAsNumber": false
+								}
+							}
+						},
+						"inputs": [
+							{
+								"referenceName": "ds_sql_generic",
+								"type": "DatasetReference",
+								"parameters": {
+									"p_schema": {
+										"value": "@pipeline().parameters.p_source_schema",
+										"type": "Expression"
+									},
+									"p_table": {
+										"value": "@pipeline().parameters.p_source_table",
+										"type": "Expression"
+									}
+								}
+							}
+						],
+						"outputs": [
+							{
+								"referenceName": "ds_adls_customer_parquet",
+								"type": "DatasetReference",
+								"parameters": {
+									"p_ingestion_date": {
+										"value": "@formatDateTime(utcNow(),'yyyy-MM-dd')",
+										"type": "Expression"
+									},
+									"p_batch_id": {
+										"value": "@pipeline().RunId",
+										"type": "Expression"
+									},
+									"p_table": "@pipeline().parameters.p_source_table",
+									"p_schema": "@pipeline().parameters.p_source_schema"
+								}
+							}
+						]
+					},
+					{
+						"name": "lookup_old_watermark",
+						"type": "Lookup",
+						"dependsOn": [],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"source": {
+								"type": "AzureSqlSource",
+								"sqlReaderQuery": {
+									"value": "@concat(\n  'SELECT source_schema, source_table, watermark_column, last_watermark, last_run_status, updated_at FROM etl.Watermark WHERE source_schema = ''',\n  pipeline().parameters.p_source_schema,\n  ''' AND source_table = ''',\n  pipeline().parameters.p_source_table,\n  ''''\n)",
+									"type": "Expression"
+								},
+								"queryTimeout": "02:00:00",
+								"partitionOption": "None"
+							},
+							"dataset": {
+								"referenceName": "ds_sql_watermark",
+								"type": "DatasetReference",
+								"parameters": {}
+							}
+						}
+					},
+					{
+						"name": "lookup_new_watermark",
+						"type": "Lookup",
+						"dependsOn": [
+							{
+								"activity": "lookup_old_watermark",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"source": {
+								"type": "AzureSqlSource",
+								"sqlReaderQuery": {
+									"value": "@concat(\n  'SELECT MAX(',\n  pipeline().parameters.p_watermark_column,\n  ') AS new_watermark FROM ',\n  pipeline().parameters.p_source_schema,\n  '.',\n  pipeline().parameters.p_source_table\n)",
+									"type": "Expression"
+								},
+								"queryTimeout": "02:00:00",
+								"partitionOption": "None"
+							},
+							"dataset": {
+								"referenceName": "ds_sql_generic",
+								"type": "DatasetReference",
+								"parameters": {
+									"p_schema": {
+										"value": "@pipeline().parameters.p_source_schema",
+										"type": "Expression"
+									},
+									"p_table": {
+										"value": "@pipeline().parameters.p_source_table",
+										"type": "Expression"
+									}
+								}
+							}
+						}
+					},
+					{
+						"name": "update_landing_watermark",
+						"type": "SqlServerStoredProcedure",
+						"dependsOn": [
+							{
+								"activity": "copy_table_to_landing",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"storedProcedureName": "etl.UpdateWatermark",
+							"storedProcedureParameters": {
+								"source_schema": {
+									"value": {
+										"value": "@pipeline().parameters.p_source_schema",
+										"type": "Expression"
+									},
+									"type": "String"
+								},
+								"source_table": {
+									"value": {
+										"value": "@pipeline().parameters.p_source_table",
+										"type": "Expression"
+									},
+									"type": "String"
+								},
+								"new_watermark": {
+									"value": {
+										"value": "@activity('lookup_new_watermark').output.firstRow.new_watermark",
+										"type": "Expression"
+									},
+									"type": "String"
+								}
+							}
+						},
+						"linkedServiceName": {
+							"referenceName": "ls_azure_sql_adventureworkslt",
+							"type": "LinkedServiceReference"
+						}
+					}
+				],
+				"policy": {
+					"elapsedTimeMetric": {}
+				},
+				"parameters": {
+					"p_source_schema": {
+						"type": "string"
+					},
+					"p_source_table": {
+						"type": "string"
+					},
+					"p_watermark_column": {
+						"type": "string"
+					}
+				},
+				"annotations": [],
+				"lastPublishTime": "2026-10-03T17:36:01Z"
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/datasets/ds_sql_generic')]",
+				"[concat(variables('factoryId'), '/datasets/ds_adls_customer_parquet')]",
+				"[concat(variables('factoryId'), '/datasets/ds_sql_watermark')]",
+				"[concat(variables('factoryId'), '/linkedServices/ls_azure_sql_adventureworkslt')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/pl_ingest_all_tables')]",
+			"type": "Microsoft.DataFactory/factories/pipelines",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"activities": [
+					{
+						"name": "lookup_ingestion_tables",
+						"type": "Lookup",
+						"dependsOn": [],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"source": {
+								"type": "AzureSqlSource",
+								"sqlReaderQuery": "SELECT\n    source_schema,\n    source_table,\n    watermark_column\nFROM etl.Watermark;",
+								"queryTimeout": "02:00:00",
+								"partitionOption": "None"
+							},
+							"dataset": {
+								"referenceName": "ds_sql_watermark",
+								"type": "DatasetReference",
+								"parameters": {}
+							},
+							"firstRowOnly": false
+						}
+					},
+					{
+						"name": "foreach_ingestion_table",
+						"type": "ForEach",
+						"dependsOn": [
+							{
+								"activity": "lookup_ingestion_tables",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"userProperties": [],
+						"typeProperties": {
+							"items": {
+								"value": "@activity('lookup_ingestion_tables').output.value",
+								"type": "Expression"
+							},
+							"isSequential": false,
+							"activities": [
+								{
+									"name": "executre_ingestion_pipeline",
+									"type": "ExecutePipeline",
+									"dependsOn": [],
+									"policy": {
+										"secureInput": false
+									},
+									"userProperties": [],
+									"typeProperties": {
+										"pipeline": {
+											"referenceName": "pl_ingest_table_incremental",
+											"type": "PipelineReference"
+										},
+										"waitOnCompletion": true,
+										"parameters": {
+											"p_source_schema": {
+												"value": "@item().source_schema",
+												"type": "Expression"
+											},
+											"p_source_table": {
+												"value": "@item().source_table",
+												"type": "Expression"
+											},
+											"p_watermark_column": {
+												"value": "@item().watermark_column",
+												"type": "Expression"
+											}
+										}
+									}
+								}
+							]
+						}
+					}
+				],
+				"policy": {
+					"elapsedTimeMetric": {}
+				},
+				"annotations": [],
+				"lastPublishTime": "2026-10-03T17:36:02Z"
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/datasets/ds_sql_watermark')]",
+				"[concat(variables('factoryId'), '/pipelines/pl_ingest_table_incremental')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/tr_daily_ingestion')]",
+			"type": "Microsoft.DataFactory/factories/triggers",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"annotations": [],
+				"runtimeState": "Started",
+				"pipelines": [
+					{
+						"pipelineReference": {
+							"referenceName": "pl_ingest_all_tables",
+							"type": "PipelineReference"
+						},
+						"parameters": {}
+					}
+				],
+				"type": "ScheduleTrigger",
+				"typeProperties": {
+					"recurrence": {
+						"frequency": "Day",
+						"interval": 1,
+						"startTime": "2026-10-04T01:30:00",
+						"timeZone": "Central European Standard Time",
+						"schedule": {
+							"hours": [
+								2
+							]
+						}
+					}
+				}
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/pipelines/pl_ingest_all_tables')]"
+			]
+		}
+	]
+}
