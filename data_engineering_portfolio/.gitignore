@@ -8,3 +8,15 @@ scratch/**
 !scratch/README.md
 **/explorations/**
 **/!explorations/README.md
+# Local editor settings
+.vscode/
+
+# AI assistant instruction files
+AGENTS.md
+CLAUDE.md
+
+# Generated/local helper file
+__builtins__.py
+
+# Unused Databricks sample resources
+resources/sample.job.yml
