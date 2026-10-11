@@ -1,0 +1,12 @@
+{
+	"name": "ls_azure_databricks",
+	"properties": {
+		"annotations": [],
+		"type": "AzureDatabricks",
+		"typeProperties": {
+			"domain": "https://adb-7405616116502851.11.azuredatabricks.net",
+			"authentication": "MSI",
+			"workspaceResourceId": "/subscriptions/adfbd062-5306-44fc-943f-f14d4442c98e/resourceGroups/rg-data-engineering-portfolio-dev/providers/Microsoft.Databricks/workspaces/dbw-data-engineering-portfolio-dev"
+		}
+	}
+}
