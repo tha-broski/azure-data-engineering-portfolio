@@ -79,6 +79,33 @@
 						}
 					]
 				}
+			},
+			{
+				"name": "trigger_databricks_job",
+				"type": "DatabricksJob",
+				"dependsOn": [
+					{
+						"activity": "foreach_ingestion_table",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"jobId": "302252291922953"
+				},
+				"linkedServiceName": {
+					"referenceName": "ls_azure_databricks",
+					"type": "LinkedServiceReference"
+				}
 			}
 		],
 		"annotations": [],
