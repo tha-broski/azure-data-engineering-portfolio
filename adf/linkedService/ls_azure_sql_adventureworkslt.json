@@ -1,15 +1,8 @@
 {
 	"name": "ls_azure_sql_adventureworkslt",
-	"type": "Microsoft.DataFactory/factories/linkedservices",
 	"properties": {
-		"annotations": [],
 		"type": "AzureSqlDatabase",
-		"typeProperties": {
-			"server": "sql-de-portfolio-dev.database.windows.net",
-			"database": "sqldb-adventureworkslt-dev",
-			"encrypt": "mandatory",
-			"trustServerCertificate": false,
-			"authenticationType": "SystemAssignedManagedIdentity"
-		}
-	}
+		"annotations": []
+	},
+	"type": "Microsoft.DataFactory/factories/linkedservices"
 }
