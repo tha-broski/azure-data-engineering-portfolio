@@ -1,0 +1,9 @@
+resources:
+  jobs:
+    data_engineering_portfolio_job:
+      name: job_data_engineering_portfolio
+
+      tasks:
+        - task_key: run_data_engineering_pipeline
+          pipeline_task:
+            pipeline_id: ${resources.pipelines.data_engineering_portfolio_etl.id}

@@ -1,0 +1,5 @@
+resource_group_name  = "rg-data-engineering-portfolio-dev"
+location             = "polandcentral"
+storage_account_name = "stdeportfoliodev01"
+sql_server_name   = "sql-de-portfolio-dev"
+sql_database_name = "sqldb-adventureworkslt-dev"

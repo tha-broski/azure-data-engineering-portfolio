@@ -1,0 +1,10 @@
+# Terraform
+.terraform/
+*.tfstate
+*.tfstate.*
+crash.log
+crash.*.log
+
+# Azure Export for Terraform
+aztfexportResourceMapping.json
+aztfexportSkippedResources.txt
